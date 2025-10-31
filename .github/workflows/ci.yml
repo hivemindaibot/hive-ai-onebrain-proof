@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r open_source/phase1/requirements.txt
+          python -m pip install pytest
+
+      - name: Run pytest
+        run: pytest
+
+      - name: Determinism replay check
+        run: python scripts/proof_replay_check.py --dest dist/proofs/proof_replay_report.json
+
+      - name: Export proof bundle
+        run: python scripts/export_phase1_proof.py --dest dist/phase1 --zip --overwrite
+
+      - name: Upload bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase1-bundle
+          path: |
+            dist/proofs/proof_replay_report.json
+            dist/phase1
+            dist/phase1.zip
