@@ -72,7 +72,9 @@ The command prints the resulting digest and writes `dist/proofs/proof_replay_rep
 
 ## Documentation
 
-Detailed background, schema references, and governance notes live in `open_source/phase1/README.md` and `open_source/phase1/manifest.json`.
+- `open_source/phase1/README.md` — full protocol reference for `/io/query`.
+- `open_source/phase1/SAFETY.md` — threat model, rate limiting, token handling, and log redaction guidance.
+- `open_source/phase1/manifest.json` — bundle inventory consumed by `scripts/export_phase1_proof.py`.
 
 ## License
 

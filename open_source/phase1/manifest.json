@@ -1,7 +1,8 @@
 {
   "files": [
     {"source": "open_source/phase1/LICENSE", "dest": "LICENSE"},
-    {"source": "open_source/phase1/README.md", "dest": "README.md"},
+  {"source": "open_source/phase1/README.md", "dest": "README.md"},
+  {"source": "open_source/phase1/SAFETY.md", "dest": "SAFETY.md"},
     {"source": "open_source/phase1/pyproject.toml", "dest": "pyproject.toml"},
     {"source": "open_source/phase1/requirements.txt", "dest": "requirements.txt"},
   {"source": "open_source/phase1/schema/request.json", "dest": "schema/request.json"},
