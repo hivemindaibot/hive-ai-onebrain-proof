@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from brain.server.proof_app import ProofConfig, create_app
+from scripts.proof_replay_check import generate_proof_replay_report
 
 
 class StubModel:
@@ -67,3 +68,12 @@ def test_query_rejects_bad_token(client):
     resp = client.post("/io/query", headers=_headers("wrong"), json={})
     assert resp.status_code == 401
     assert resp.get_json()["error"] == "unauthorized"
+
+
+def test_proof_replay_report(tmp_path: Path):
+    dest = tmp_path / "proof.json"
+    report = generate_proof_replay_report(dest, artifacts_dir=tmp_path)
+    assert report["equal"] is True
+    assert report["sha256"]
+    saved = json.loads(dest.read_text())
+    assert saved == report

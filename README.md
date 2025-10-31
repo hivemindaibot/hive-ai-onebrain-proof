@@ -48,6 +48,16 @@ python -m brain.server.proof_app
 
 Then POST to `http://127.0.0.1:8100/io/query` with the payload shape defined in `open_source/phase1/README.md`. Include `Authorization: Bearer dev-token` in the request headers.
 
+## Determinism proof
+
+Generate a replay report that hashes two identical `/io/query` calls and asserts they match:
+
+```bash
+python scripts/proof_replay_check.py --dest dist/proofs/proof_replay_report.json
+```
+
+The command prints the resulting digest and writes `dist/proofs/proof_replay_report.json` containing `{ "equal": true, "sha256": "..." }`.
+
 ## Documentation
 
 Detailed background, schema references, and governance notes live in `open_source/phase1/README.md` and `open_source/phase1/manifest.json`.
