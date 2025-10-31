@@ -23,6 +23,10 @@ A lightweight reference implementation of the Hive OneBrain "proof" runtime used
 - Building integration tests or proof of compliance flows against the `/io/query` contract before onboarding to the full platform.
 - Packaging the proof bundle (`dist/phase1.zip`) for workshops, security reviews, or academic replication studies.
 
+## RAP overview
+
+While the Phase 1 proof keeps the footprint small, the production Hive stack also ships a Reward-Assisted Planning (RAP) pipeline located in `brain/learn/rap_harvest.py` and `scripts/rap_harvest.py`. The harvester scores execution traces, tags them with autonomy metadata, and writes bundles under `artifacts/rap/harvests/<timestamp>/traces.jsonl`. Those bundles flow into the learning adapters and the ToolForge promotion gates, providing evaluators with structured evidence before new behaviors are promoted. This repository does not include the RAP code itself, but the proof runtime is compatible with the same trace schema, so harvested artifacts can be replayed or audited alongside `/io/query` runs.
+
 ## Quick start
 
 ```bash
