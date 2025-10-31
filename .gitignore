@@ -1,0 +1,7 @@
+# Local environment and cache directories
+.venv/
+__pycache__/
+.pytest_cache/
+
+# Build artifacts
+/dist/

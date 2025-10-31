@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hive-ai-onebrain-proof"
+version = "0.1.0"
+description = "Hive AI OneBrain Proof: Phase 1 proof-of-learning service"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "OneBrain Contributors" }]
+dependencies = [
+    "flask>=3.0,<4",
+]
+
+[project.urls]
+Homepage = "https://github.com/hive-ai/hive-ai-onebrain-proof"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["brain*", "tests*"]

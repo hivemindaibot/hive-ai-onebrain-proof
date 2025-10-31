@@ -1,0 +1,16 @@
+{
+  "files": [
+    {"source": "open_source/phase1/LICENSE", "dest": "LICENSE"},
+    {"source": "open_source/phase1/README.md", "dest": "README.md"},
+    {"source": "open_source/phase1/pyproject.toml", "dest": "pyproject.toml"},
+    {"source": "open_source/phase1/requirements.txt", "dest": "requirements.txt"},
+    {"source": "open_source/phase1/tests/test_proof_app.py", "dest": "tests/test_proof_app.py"},
+    {"source": "brain/__init__.py", "dest": "brain/__init__.py"},
+    {"source": "brain/io/artifacts.py", "dest": "brain/io/artifacts.py"},
+    {"source": "brain/io/audit.py", "dest": "brain/io/audit.py"},
+    {"source": "brain/io/probes.py", "dest": "brain/io/probes.py"},
+    {"source": "brain/io/validators.py", "dest": "brain/io/validators.py"},
+    {"source": "brain/server/__init__.py", "dest": "brain/server/__init__.py"},
+    {"source": "brain/server/proof_app.py", "dest": "brain/server/proof_app.py"}
+  ]
+}
