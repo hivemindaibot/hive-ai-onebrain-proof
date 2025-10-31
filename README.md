@@ -64,6 +64,12 @@ python scripts/proof_replay_check.py --dest dist/proofs/proof_replay_report.json
 
 The command prints the resulting digest and writes `dist/proofs/proof_replay_report.json` containing `{ "equal": true, "sha256": "..." }`.
 
+## JSON schemas
+
+- Request schema (`0.1.0`): `open_source/phase1/schema/request.json`
+- Response schema (`0.1.0`): `open_source/phase1/schema/response.json`
+- Tests (`tests/test_proof_app.py`) validate both schemas using `jsonschema` to prevent accidental drift.
+
 ## Documentation
 
 Detailed background, schema references, and governance notes live in `open_source/phase1/README.md` and `open_source/phase1/manifest.json`.

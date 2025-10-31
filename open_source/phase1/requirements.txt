@@ -1,1 +1,2 @@
 flask>=3.0,<4
+jsonschema>=4.22.0

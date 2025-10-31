@@ -6,9 +6,15 @@ from pathlib import Path
 from typing import Iterator
 
 import pytest
+import jsonschema
 
 from brain.server.proof_app import ProofConfig, create_app
 from scripts.proof_replay_check import generate_proof_replay_report
+
+SCHEMA_DIR = Path(__file__).resolve().parents[1] / "schema"
+REQUEST_SCHEMA = json.loads((SCHEMA_DIR / "request.json").read_text())
+RESPONSE_SCHEMA = json.loads((SCHEMA_DIR / "response.json").read_text())
+SCHEMA_VERSION = "0.1.0"
 
 
 class StubModel:
@@ -81,10 +87,12 @@ def test_query_accepts_valid_request(tmp_path: Path, client):
         "sha256": digest,
     }
     payload = {"query": "What does the evidence say?", "context": [context_entry]}
+    jsonschema.validate(payload, REQUEST_SCHEMA)
 
     resp = client.post("/io/query", headers=_headers("test-token"), json=payload)
     assert resp.status_code == 200
     data = resp.get_json()
+    jsonschema.validate(data, RESPONSE_SCHEMA)
     assert data["decision"] == "accept"
     assert data["citations"][0]["id"] == "doc-1"
     probe_gate = tmp_path / "artifacts" / "io" / "probe_gate.json"
@@ -139,3 +147,14 @@ def test_cors_allows_configured_origin(cors_client):
     )
     assert preflight.status_code == 204
     assert preflight.headers["Access-Control-Allow-Origin"] == origin
+
+
+def test_request_schema_version_matches_response():
+    assert REQUEST_SCHEMA["x-version"] == RESPONSE_SCHEMA["x-version"] == SCHEMA_VERSION
+
+
+def test_request_schema_allows_missing_sha256():
+    payload = _example_payload()
+    payload_context = payload["context"][0]
+    payload_context.pop("sha256")
+    jsonschema.validate(payload, REQUEST_SCHEMA)
