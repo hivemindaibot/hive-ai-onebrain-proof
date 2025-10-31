@@ -10,6 +10,19 @@ A lightweight reference implementation of the Hive OneBrain "proof" runtime used
 - `scripts/export_phase1_proof.py` to assemble zip bundles for distribution.
 - Pytest coverage under `open_source/phase1/tests` to ensure the public API stays stable.
 
+## What the proof runtime does
+
+- Normalizes inbound queries into the canonical Hive request shape, enforcing field level validation before any model call.
+- Runs a deterministic reasoning stub that mirrors the structure of production tool outputs while staying offline friendly.
+- Applies policy probes and schema validation to the model response, emitting `accept`, `review`, or `reject` decisions plus audit artifacts on disk.
+- Returns a structured JSON envelope that downstream systems can consume without needing the private Hive codebase.
+
+## Typical uses
+
+- Demonstrating the Hive guardrail pipeline to external partners without exposing proprietary models or plugins.
+- Building integration tests or proof of compliance flows against the `/io/query` contract before onboarding to the full platform.
+- Packaging the proof bundle (`dist/phase1.zip`) for workshops, security reviews, or academic replication studies.
+
 ## Quick start
 
 ```bash
