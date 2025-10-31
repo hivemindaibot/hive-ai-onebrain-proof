@@ -10,12 +10,31 @@ from typing import Any, Dict, Iterable, Optional, Protocol, Sequence, Tuple
 from uuid import uuid4
 
 from flask import Flask, Response, jsonify, request
+from prometheus_client import Counter, Histogram, generate_latest
 
 from brain.io import validators as io_validators
 from brain.io.artifacts import write_artifacts as io_write_artifacts
 from brain.io.probes import run_probes
 
 LOGGER = logging.getLogger(__name__)
+
+IO_REQUESTS = Counter(
+    "proof_io_requests_total",
+    "Total IO requests processed",
+    labelnames=("decision",),
+)
+
+IO_LATENCY = Histogram(
+    "proof_io_latency_seconds",
+    "Latency of IO requests",
+    buckets=(0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0),
+)
+
+VALIDATOR_FAIL = Counter(
+    "proof_validator_fail_total",
+    "Validation failures by stage",
+    labelnames=("stage",),
+)
 
 
 class ModelClientProtocol(Protocol):
@@ -147,6 +166,12 @@ def _authorize(headers: Dict[str, str], expected_token: str) -> bool:
     return token == expected_token
 
 
+def _metrics_unauthorized() -> Response:
+    resp = Response("", status=401)
+    resp.headers["WWW-Authenticate"] = "Bearer"
+    return resp
+
+
 def create_app(
     config: Optional[ProofConfig] = None,
     *,
@@ -183,6 +208,17 @@ def create_app(
     def healthz() -> Any:
         return jsonify({"ok": True})
 
+    @app.get("/metrics")
+    def metrics() -> Response:
+        cfg: ProofConfig = app.config["PROOF_CONFIG"]
+        if not _authorize(request.headers, cfg.api_token):
+            return _metrics_unauthorized()
+        payload = generate_latest()
+        resp = Response(payload, mimetype="text/plain; version=0.0.4; charset=utf-8")
+        vary = resp.headers.get("Vary", "")
+        resp.headers["Vary"] = _merge_vary_header(vary, "Authorization")
+        return resp
+
     @app.route("/io/query", methods=["POST", "OPTIONS"])
     def io_query() -> Any:
         cfg: ProofConfig = app.config["PROOF_CONFIG"]
@@ -201,6 +237,7 @@ def create_app(
         try:
             req = io_validators.normalize_request(payload, autonomy_level=cfg.default_autonomy)
         except io_validators.ValidationError as exc:
+            VALIDATOR_FAIL.labels(stage="request").inc()
             return jsonify({"ok": False, "error": "invalid_request", "details": str(exc)}), 400
 
         messages = io_validators.build_messages(req)
@@ -217,6 +254,7 @@ def create_app(
         except Exception as exc:  # pragma: no cover - defensive guard
             latency = time.perf_counter() - start
             LOGGER.exception("model invocation failed: %s", exc)
+            VALIDATOR_FAIL.labels(stage="model").inc()
             run_id = uuid4().hex
             validation = io_validators.ValidationResult(
                 ok=False,
@@ -254,6 +292,7 @@ def create_app(
                 usage=dict(usage),
             )
         except io_validators.ValidationError as exc:
+            VALIDATOR_FAIL.labels(stage="response_parse").inc()
             validation = io_validators.ValidationResult(
                 ok=False,
                 decision="reject",
@@ -272,6 +311,9 @@ def create_app(
                 target = validation.errors if issue["severity"] == "error" else validation.warnings
                 target.append(label)
             validation.update_decision()
+
+        IO_LATENCY.observe(latency)
+        IO_REQUESTS.labels(decision=validation.decision).inc()
 
         io_write_artifacts(
             cfg.artifacts_dir,

@@ -149,6 +149,19 @@ def test_cors_allows_configured_origin(cors_client):
     assert preflight.headers["Access-Control-Allow-Origin"] == origin
 
 
+def test_metrics_requires_token(client):
+    assert client.get("/metrics").status_code == 401
+
+
+def test_metrics_increments_on_request(client):
+    payload = _example_payload()
+    client.post("/io/query", headers=_headers("test-token"), json=payload)
+    resp = client.get("/metrics", headers={"Authorization": "Bearer test-token"})
+    assert resp.status_code == 200
+    body = resp.data.decode("utf-8")
+    assert "proof_io_requests_total" in body
+
+
 def test_request_schema_version_matches_response():
     assert REQUEST_SCHEMA["x-version"] == RESPONSE_SCHEMA["x-version"] == SCHEMA_VERSION
 

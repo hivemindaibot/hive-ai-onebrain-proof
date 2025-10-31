@@ -9,6 +9,7 @@ A lightweight reference implementation of the Hive OneBrain "proof" runtime used
 - Validation and probing pipeline (`brain/io/*`) that enforces guardrails before returning an answer.
 - `scripts/export_phase1_proof.py` to assemble zip bundles for distribution.
 - Pytest coverage under `open_source/phase1/tests` to ensure the public API stays stable.
+- Prometheus `/metrics` endpoint (guarded by the API token) with counters and latency histograms.
 
 ## What the proof runtime does
 
