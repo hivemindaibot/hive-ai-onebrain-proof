@@ -4,12 +4,12 @@ import json
 import logging
 import os
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional, Protocol, Sequence, Tuple
 from uuid import uuid4
 
-from flask import Flask, jsonify, request
+from flask import Flask, Response, jsonify, request
 
 from brain.io import validators as io_validators
 from brain.io.artifacts import write_artifacts as io_write_artifacts
@@ -36,9 +36,22 @@ class ModelClientProtocol(Protocol):
 class ProofConfig:
     """Lightweight configuration for the proof application."""
 
-    api_token: str = os.getenv("PROOF_API_TOKEN", "dev-token")
+    api_token: str | None = None
     artifacts_dir: str = os.getenv("PROOF_ARTIFACTS_DIR", "artifacts/proof")
     default_autonomy: str = os.getenv("PROOF_AUTONOMY_LEVEL", "full")
+    cors_origins: tuple[str, ...] = field(default_factory=tuple)
+
+    def __post_init__(self) -> None:
+        if not self.api_token:
+            env_token = os.getenv("PROOF_API_TOKEN")
+            if not env_token:
+                raise RuntimeError("PROOF_API_TOKEN must be set before starting the proof runtime")
+            self.api_token = env_token
+        if not self.cors_origins:
+            origins = os.getenv("PROOF_CORS_ORIGINS", "")
+            values = tuple(o.strip() for o in origins.split(",") if o.strip())
+            if values:
+                self.cors_origins = values
 
 
 class DefaultProofModel:
@@ -85,6 +98,23 @@ class ProofBrain:
 
 def _ensure_dir(path: str) -> None:
     Path(path).mkdir(parents=True, exist_ok=True)
+
+
+def _merge_vary_header(current: str, value: str) -> str:
+    parts = [segment.strip() for segment in current.split(",") if segment.strip()]
+    if value not in parts:
+        parts.append(value)
+    return ", ".join(parts)
+
+
+def _set_cors_headers(resp: Response, origin: str) -> Response:
+    resp.headers["Access-Control-Allow-Origin"] = origin
+    resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    resp.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
+    resp.headers["Access-Control-Max-Age"] = "600"
+    vary = resp.headers.get("Vary", "")
+    resp.headers["Vary"] = _merge_vary_header(vary, "Origin")
+    return resp
 
 
 def _call_model(
@@ -136,15 +166,33 @@ def create_app(
 
     app.config["PROOF_CONFIG"] = cfg
     app.config["PROOF_BRAIN"] = brain
+    app.config["PROOF_ALLOWED_ORIGINS"] = set(cfg.cors_origins)
+
+    def _cors_enabled(origin: Optional[str]) -> bool:
+        allowed: set[str] = app.config["PROOF_ALLOWED_ORIGINS"]
+        return bool(allowed and origin and origin in allowed)
+
+    @app.after_request
+    def _apply_cors(resp: Response) -> Response:
+        origin = request.headers.get("Origin")
+        if _cors_enabled(origin):
+            _set_cors_headers(resp, origin)  # ensures vary + allow headers
+        return resp
 
     @app.get("/healthz")
     def healthz() -> Any:
         return jsonify({"ok": True})
 
-    @app.post("/io/query")
+    @app.route("/io/query", methods=["POST", "OPTIONS"])
     def io_query() -> Any:
         cfg: ProofConfig = app.config["PROOF_CONFIG"]
         brain: ProofBrain = app.config["PROOF_BRAIN"]
+
+        if request.method == "OPTIONS":
+            origin = request.headers.get("Origin")
+            if not _cors_enabled(origin):
+                return jsonify({"ok": False, "error": "cors_not_allowed"}), 403
+            return _set_cors_headers(Response(status=204), origin)
 
         if not _authorize(request.headers, cfg.api_token):
             return jsonify({"ok": False, "error": "unauthorized"}), 401

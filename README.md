@@ -48,6 +48,12 @@ python -m brain.server.proof_app
 
 Then POST to `http://127.0.0.1:8100/io/query` with the payload shape defined in `open_source/phase1/README.md`. Include `Authorization: Bearer dev-token` in the request headers.
 
+## Configuration
+
+- `PROOF_API_TOKEN` (required): shared secret for `/io/query` and `/metrics`. The runtime refuses to start if it is unset or empty.
+- `PROOF_CORS_ORIGINS` (optional): comma-separated list of origins allowed for browser clients. When omitted, CORS is disabled.
+- `PROOF_ARTIFACTS_DIR`, `PROOF_AUTONOMY_LEVEL`: override artifact location and default autonomy budget if needed.
+
 ## Determinism proof
 
 Generate a replay report that hashes two identical `/io/query` calls and asserts they match:

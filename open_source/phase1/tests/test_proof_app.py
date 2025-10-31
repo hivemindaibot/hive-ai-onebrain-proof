@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+from typing import Iterator
 
 import pytest
 
@@ -41,8 +42,34 @@ def client(app):
     return app.test_client()
 
 
+@pytest.fixture()
+def cors_client(tmp_path: Path) -> Iterator:
+    cfg = ProofConfig(
+        api_token="test-token",
+        artifacts_dir=str(tmp_path / "artifacts"),
+        cors_origins=("https://example.com",),
+    )
+    app = create_app(cfg, model=StubModel(), testing=True)
+    yield app.test_client()
+
+
 def _headers(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+
+def _example_payload() -> dict[str, object]:
+    text = "Evidence for deterministic response."
+    digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    return {
+        "query": "Provide the summary.",
+        "context": [
+            {
+                "id": "doc-ctx",
+                "text": text,
+                "sha256": digest,
+            }
+        ],
+    }
 
 
 def test_query_accepts_valid_request(tmp_path: Path, client):
@@ -77,3 +104,38 @@ def test_proof_replay_report(tmp_path: Path):
     assert report["sha256"]
     saved = json.loads(dest.read_text())
     assert saved == report
+
+
+def test_config_requires_api_token(monkeypatch):
+    monkeypatch.delenv("PROOF_API_TOKEN", raising=False)
+    with pytest.raises(RuntimeError):
+        ProofConfig()
+
+
+def test_cors_disabled_by_default(client):
+    payload = _example_payload()
+    headers = _headers("test-token")
+    headers["Origin"] = "https://example.com"
+    resp = client.post("/io/query", headers=headers, json=payload)
+    assert resp.status_code == 200
+    assert "Access-Control-Allow-Origin" not in resp.headers
+
+
+def test_cors_allows_configured_origin(cors_client):
+    payload = _example_payload()
+    headers = _headers("test-token")
+    origin = "https://example.com"
+    headers["Origin"] = origin
+    resp = cors_client.post("/io/query", headers=headers, json=payload)
+    assert resp.headers["Access-Control-Allow-Origin"] == origin
+
+    preflight = cors_client.options(
+        "/io/query",
+        headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "Authorization, Content-Type",
+        },
+    )
+    assert preflight.status_code == 204
+    assert preflight.headers["Access-Control-Allow-Origin"] == origin
