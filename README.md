@@ -49,6 +49,16 @@ python -m brain.server.proof_app
 
 Then POST to `http://127.0.0.1:8100/io/query` with the payload shape defined in `open_source/phase1/README.md`. Include `Authorization: Bearer dev-token` in the request headers.
 
+Example request using `curl`:
+
+```bash
+curl -s \
+-H "Authorization: Bearer dev-token" \
+-H "Content-Type: application/json" \
+-d '{"query":"Summarize the approved context","context":[{"id":"kb-doc-1","text":"Artificial superintelligence research notes.","sha256":"3ffb24e75982277bc6218180eedcd80e2fce46f84b686b21083a87c05ee00bca"}]}' \
+http://127.0.0.1:8100/io/query | jq
+```
+
 ## Configuration
 
 - `PROOF_API_TOKEN` (required): shared secret for `/io/query` and `/metrics`. The runtime refuses to start if it is unset or empty.
@@ -75,6 +85,12 @@ The command prints the resulting digest and writes `dist/proofs/proof_replay_rep
 ## Bundle manifest
 
 `dist/phase1/manifest.json` records the git commit, Python version, selected `PROOF_*` environment flags (tokens noted only as "set"/"unset"), schema versions, and a SHA-256 digest of `open_source/phase1/tests`. CI uploads the manifest alongside the determinism report and bundle archive for easy provenance checks.
+
+## What this proof is not
+
+- No production plugins or external tool execution; the bundle ships a deterministic fallback model only.
+- No training pipelines. Use it to validate IO contracts and governance paths, not to fine-tune or harvest new behaviors.
+- Not a replacement for production observability or RBAC. It omits enterprise integrations (OIDC, quota enforcement, ToolForge promotions).
 
 ## Documentation
 
