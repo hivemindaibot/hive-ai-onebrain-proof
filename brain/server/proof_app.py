@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import json
@@ -170,6 +172,19 @@ def _metrics_unauthorized() -> Response:
     resp = Response("", status=401)
     resp.headers["WWW-Authenticate"] = "Bearer"
     return resp
+
+
+def resolve_bind_host(default: str = "127.0.0.1") -> str:
+    """Resolve the host binding while enforcing local-only default."""
+
+    host = os.getenv("PROOF_HOST", default).strip() or default
+    public_hosts = {"0.0.0.0", "::", "[::]"}
+    if host in public_hosts:
+        if os.getenv("PROOF_ALLOW_PUBLIC") != "1":
+            raise RuntimeError(
+                "Refusing to bind to a public interface without PROOF_ALLOW_PUBLIC=1"
+            )
+    return host
 
 
 def create_app(
@@ -354,7 +369,8 @@ def main() -> None:  # pragma: no cover - manual entry point
     logging.basicConfig(level=logging.INFO)
     app = create_app()
     port = int(os.getenv("PROOF_PORT", "8100"))
-    app.run(host="127.0.0.1", port=port)
+    host = resolve_bind_host()
+    app.run(host=host, port=port)
 
 
 if __name__ == "__main__":  # pragma: no cover - script execution

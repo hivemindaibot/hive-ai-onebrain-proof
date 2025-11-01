@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import hashlib
@@ -8,7 +10,7 @@ from typing import Iterator
 import jsonschema
 import pytest
 
-from brain.server.proof_app import ProofConfig, create_app
+from brain.server.proof_app import ProofConfig, create_app, resolve_bind_host
 from scripts.export_phase1_proof import ROOT, compute_tests_hash, export_bundle
 from scripts.proof_replay_check import generate_proof_replay_report
 
@@ -176,6 +178,25 @@ def test_export_bundle_manifest_metadata(tmp_path: Path):
     assert bundle_meta["files_count"] == len(manifest_data["files"])
     assert bundle_meta["git_commit"]
     assert "PROOF_API_TOKEN_set" in bundle_meta["env_flags"]
+
+
+def test_resolve_bind_host_defaults_to_local(monkeypatch):
+    monkeypatch.delenv("PROOF_HOST", raising=False)
+    monkeypatch.delenv("PROOF_ALLOW_PUBLIC", raising=False)
+    assert resolve_bind_host() == "127.0.0.1"
+
+
+def test_resolve_bind_host_blocks_public(monkeypatch):
+    monkeypatch.setenv("PROOF_HOST", "0.0.0.0")
+    monkeypatch.delenv("PROOF_ALLOW_PUBLIC", raising=False)
+    with pytest.raises(RuntimeError):
+        resolve_bind_host()
+
+
+def test_resolve_bind_host_allows_public_override(monkeypatch):
+    monkeypatch.setenv("PROOF_HOST", "0.0.0.0")
+    monkeypatch.setenv("PROOF_ALLOW_PUBLIC", "1")
+    assert resolve_bind_host() == "0.0.0.0"
 
 
 def test_request_schema_version_matches_response():

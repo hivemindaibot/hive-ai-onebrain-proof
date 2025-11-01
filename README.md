@@ -53,6 +53,7 @@ Then POST to `http://127.0.0.1:8100/io/query` with the payload shape defined in 
 
 - `PROOF_API_TOKEN` (required): shared secret for `/io/query` and `/metrics`. The runtime refuses to start if it is unset or empty.
 - `PROOF_CORS_ORIGINS` (optional): comma-separated list of origins allowed for browser clients. When omitted, CORS is disabled.
+- `PROOF_HOST` (optional): bind address (default `127.0.0.1`). Binding to `0.0.0.0` or `::` requires `PROOF_ALLOW_PUBLIC=1`.
 - `PROOF_ARTIFACTS_DIR`, `PROOF_AUTONOMY_LEVEL`: override artifact location and default autonomy budget if needed.
 
 ## Determinism proof

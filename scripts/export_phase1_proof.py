@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+
 """Assemble the Phase 1 proof bundle from the audited manifest."""
 
 from __future__ import annotations
