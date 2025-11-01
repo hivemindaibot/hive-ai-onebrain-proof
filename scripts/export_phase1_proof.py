@@ -4,13 +4,98 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import os
+import platform
 import shutil
+import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, Dict, List
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_MANIFEST = ROOT / "open_source" / "phase1" / "manifest.json"
 DEFAULT_DEST = ROOT / "dist" / "phase1"
+SCHEMA_REQUEST = ROOT / "open_source" / "phase1" / "schema" / "request.json"
+SCHEMA_RESPONSE = ROOT / "open_source" / "phase1" / "schema" / "response.json"
+
+
+def _git_commit() -> str:
+    try:
+        return (
+            subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True)
+            .strip()
+        )
+    except Exception:  # pragma: no cover - git metadata optional
+        return "unknown"
+
+
+def _schema_version(path: Path) -> str:
+    try:
+        data = json.loads(path.read_text())
+        return str(data.get("x-version", "unknown"))
+    except Exception:  # pragma: no cover - defensive guard
+        return "unknown"
+
+
+def compute_tests_hash() -> str:
+    """Compute a stable hash across the Phase 1 test suite."""
+
+    tests_dir = ROOT / "open_source" / "phase1" / "tests"
+    digest = hashlib.sha256()
+    for path in sorted(tests_dir.rglob("*.py")):
+        digest.update(path.relative_to(ROOT).as_posix().encode("utf-8"))
+        digest.update(path.read_bytes())
+    return digest.hexdigest()
+
+
+def _env_flags() -> Dict[str, Any]:
+    return {
+        "PROOF_API_TOKEN_set": bool(os.getenv("PROOF_API_TOKEN")),
+        "PROOF_CORS_ORIGINS": os.getenv("PROOF_CORS_ORIGINS", ""),
+        "PROOF_AUTONOMY_LEVEL": os.getenv("PROOF_AUTONOMY_LEVEL", ""),
+    }
+
+
+def _collect_bundle_metadata(entries: List[Dict[str, str]], manifest_path: Path) -> Dict[str, Any]:
+    timestamp = (
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
+    try:
+        manifest_label = manifest_path.resolve().relative_to(ROOT).as_posix()
+    except ValueError:  # pragma: no cover - external manifest path
+        manifest_label = manifest_path.resolve().as_posix()
+
+    return {
+        "bundle_version": "phase1",
+        "generated_at": timestamp,
+        "git_commit": _git_commit(),
+        "python_version": platform.python_version(),
+        "env_flags": _env_flags(),
+        "schema_versions": {
+            "request": _schema_version(SCHEMA_REQUEST),
+            "response": _schema_version(SCHEMA_RESPONSE),
+        },
+        "tests_sha256": compute_tests_hash(),
+        "files_count": len(entries),
+        "source_manifest": manifest_label,
+        "ci_run_id": os.getenv("GITHUB_RUN_ID"),
+    }
+
+
+def _write_bundle_manifest(dest: Path, entries: List[Dict[str, str]], manifest_path: Path) -> None:
+    bundle = _collect_bundle_metadata(entries, manifest_path)
+    payload = {
+        "bundle": bundle,
+        "files": entries,
+    }
+    (dest / "manifest.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+SCHEMA_REQUEST = ROOT / "open_source" / "phase1" / "schema" / "request.json"
+SCHEMA_RESPONSE = ROOT / "open_source" / "phase1" / "schema" / "response.json"
 
 
 def _load_manifest(path: Path) -> list[dict[str, str]]:
@@ -52,6 +137,8 @@ def export_bundle(*, manifest: Path, dest: Path, overwrite: bool = False, zip_ar
             raise FileNotFoundError(f"source missing: {source}")
         target = dest / entry["dest"]
         _copy_file(source, target)
+
+    _write_bundle_manifest(dest, entries, manifest)
 
     if zip_archive:
         archive_path = shutil.make_archive(dest.as_posix(), "zip", root_dir=dest)

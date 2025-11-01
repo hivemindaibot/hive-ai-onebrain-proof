@@ -5,16 +5,18 @@ import json
 from pathlib import Path
 from typing import Iterator
 
-import pytest
 import jsonschema
+import pytest
 
 from brain.server.proof_app import ProofConfig, create_app
+from scripts.export_phase1_proof import ROOT, compute_tests_hash, export_bundle
 from scripts.proof_replay_check import generate_proof_replay_report
 
 SCHEMA_DIR = Path(__file__).resolve().parents[1] / "schema"
 REQUEST_SCHEMA = json.loads((SCHEMA_DIR / "request.json").read_text())
 RESPONSE_SCHEMA = json.loads((SCHEMA_DIR / "response.json").read_text())
 SCHEMA_VERSION = "0.1.0"
+MANIFEST_PATH = Path(__file__).resolve().parents[1] / "manifest.json"
 
 
 class StubModel:
@@ -160,6 +162,20 @@ def test_metrics_increments_on_request(client):
     assert resp.status_code == 200
     body = resp.data.decode("utf-8")
     assert "proof_io_requests_total" in body
+
+
+def test_export_bundle_manifest_metadata(tmp_path: Path):
+    dest = tmp_path / "bundle"
+    export_bundle(manifest=MANIFEST_PATH, dest=dest, overwrite=True, zip_archive=False)
+    manifest_data = json.loads((dest / "manifest.json").read_text())
+    assert manifest_data["files"]
+    bundle_meta = manifest_data["bundle"]
+    assert bundle_meta["schema_versions"]["request"] == SCHEMA_VERSION
+    assert bundle_meta["schema_versions"]["response"] == SCHEMA_VERSION
+    assert bundle_meta["tests_sha256"] == compute_tests_hash()
+    assert bundle_meta["files_count"] == len(manifest_data["files"])
+    assert bundle_meta["git_commit"]
+    assert "PROOF_API_TOKEN_set" in bundle_meta["env_flags"]
 
 
 def test_request_schema_version_matches_response():

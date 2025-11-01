@@ -71,6 +71,10 @@ The command prints the resulting digest and writes `dist/proofs/proof_replay_rep
 - Response schema (`0.1.0`): `open_source/phase1/schema/response.json`
 - Tests (`tests/test_proof_app.py`) validate both schemas using `jsonschema` to prevent accidental drift.
 
+## Bundle manifest
+
+`dist/phase1/manifest.json` records the git commit, Python version, selected `PROOF_*` environment flags (tokens noted only as "set"/"unset"), schema versions, and a SHA-256 digest of `open_source/phase1/tests`. CI uploads the manifest alongside the determinism report and bundle archive for easy provenance checks.
+
 ## Documentation
 
 - `open_source/phase1/README.md` — full protocol reference for `/io/query`.
